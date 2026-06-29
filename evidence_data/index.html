@@ -1,0 +1,68 @@
+    <!DOCTYPE html>
+    <html lang="vi">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Hệ Thống Giám Sát Bệnh Nhân</title>
+        <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f3f4f6; margin: 0; padding: 20px; color: #1f2937; }
+            .container { max-width: 800px; margin: auto; }
+            .header { text-align: center; margin-bottom: 20px; }
+            .live-cam { background: #000; border-radius: 12px; overflow: hidden; position: relative; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); margin-bottom: 20px; }
+            .live-cam img { width: 100%; display: block; }
+            .badge { position: absolute; top: 15px; left: 15px; background: red; color: white; padding: 5px 10px; border-radius: 20px; font-weight: bold; font-size: 12px; animation: blink 1s infinite; }
+            @keyframes blink { 50% { opacity: 0; } }
+            
+            .log-panel { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+            .log-item { display: flex; align-items: flex-start; border-left: 4px solid #3b82f6; padding-left: 15px; margin-bottom: 20px; }
+            .log-item.alert { border-left-color: #ef4444; }
+            .log-time { font-size: 0.85rem; color: #6b7280; font-weight: bold; width: 80px; flex-shrink: 0; }
+            .log-content { flex-grow: 1; }
+            .log-title { font-weight: bold; margin-bottom: 5px; }
+            .log-desc { font-size: 0.9rem; color: #4b5563; }
+            .evidence-img { height: 80px; border-radius: 6px; margin-top: 10px; border: 1px solid #e5e7eb; cursor: pointer; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h2>🏥 Theo Dõi Bệnh Nhân </h2>
+            </div>
+
+            <div class="live-cam">
+                <div class="badge">🔴 LIVE</div>
+                <img id="live-stream" src="/evidence/live.jpg" alt="Camera Live Feed" onerror="this.src='https://via.placeholder.com/800x450?text=Dang+Ket+Noi+Camera...'">
+            </div>
+
+            <div class="log-panel">
+                <h3>Dòng thời gian sự kiện (Log Events)</h3>
+                
+                <div class="log-item alert">
+                    <div class="log-time">Vừa xong</div>
+                    <div class="log-content">
+                        <div class="log-title">⚠️ Phát hiện lật người liên tục</div>
+                        <div class="log-desc">Bệnh nhân trăn trở, xoay người với tần suất cao trong 5 phút.</div>
+                        <img class="evidence-img" src="/evidence/test_fallback.jpg" alt="Bằng chứng" onerror="this.style.display='none'">
+                    </div>
+                </div>
+
+                <div class="log-item">
+                    <div class="log-time">10:00 AM</div>
+                    <div class="log-content">
+                        <div class="log-title">ℹ️ Trạng thái bình thường</div>
+                        <div class="log-desc">Hệ thống khởi động và đang giám sát ổn định.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // Hàm hack để xem Live Video trên Web mà không cần cài server WebRTC nặng nề
+            setInterval(() => {
+                const liveImg = document.getElementById('live-stream');
+                // Thêm timestamp vào cuối URL để trình duyệt không bị dính cache (bắt buộc tải ảnh mới)
+                liveImg.src = '/evidence/live.jpg?t=' + new Date().getTime();
+            }, 500); // Tốc độ cập nhật 500ms = 2 hình/giây. Giảm xuống 200 để mượt hơn.
+        </script>
+    </body>
+    </html>

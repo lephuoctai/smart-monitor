@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # CSDL MongoDB (Giới hạn 512MB RAM)
+  mongodb:
+    image: mongo:6.0
+    container_name: monitor_db
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./db_data:/data/db
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  # Nginx lưu ảnh bằng chứng (Giới hạn 100MB RAM)
+  storage-server:
+    image: nginx:alpine
+    container_name: monitor_storage
+    ports:
+      - "9000:80"
+    volumes:
+      - ./evidence_data:/usr/share/nginx/html/evidence
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 100M
+
+  # CV Engine giả lập giới hạn của HP i3 (Tối đa 1.5 CPU, 1.5GB RAM)
+  cv-engine:
+    build: ./cv-engine
+    container_name: monitor_cv
+    network_mode: "host" # Bắt buộc để nhìn thấy IP 100.108.x.x của Tailscale/Local
+    depends_on:
+      - mongodb
+    volumes:
+      - ./cv-engine:/app
+      - ./evidence_data:/app/evidence
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+

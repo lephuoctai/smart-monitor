@@ -1,0 +1,16 @@
+# Bỏ qua thư mục Database (Tuyệt đối không push data thật lên Git)
+db_data/
+
+# Bỏ qua các ảnh chụp rác và file log trong quá trình test (Nhưng VẪN GIỮ LẠI file index.html)
+evidence_data/*.jpg
+evidence_data/*.png
+evidence_data/history.json
+
+# Bỏ qua rác của Python và môi trường ảo (nếu có tạo nhầm ở ngoài)
+__pycache__/
+*.pyc
+venv/
+.env
+
+# Bỏ qua rác của hệ điều hành
+.DS_Store
