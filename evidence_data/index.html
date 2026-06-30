@@ -3,269 +3,256 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ Thống Giám Sát Bệnh Nhân</title>
+    <title>Dashboard Giám Sát Bệnh Nhân</title>
     <style>
         :root {
-            --bg-color: #F5F5F7;
-            --panel-bg: #FFFFFF;
-            --text-main: #1D1D1F;
-            --text-secondary: #86868B;
-            --border-color: rgba(0, 0, 0, 0.05);
-            --blue-mac: #007AFF;
-            --red-mac: #FF3B30;
-            --shadow-mac: 0 4px 24px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.04);
+            --bg-color: #F5F5F7; --panel-bg: #FFFFFF; --text-main: #1D1D1F; --text-secondary: #86868B;
+            --border-color: rgba(0, 0, 0, 0.08); --blue: #007AFF; --red: #FF3B30; --green: #34C759; --orange: #FF9500;
+            --shadow: 0 4px 24px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.04);
         }
 
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif; 
-            background-color: var(--bg-color); 
-            margin: 0; 
-            padding: 30px 20px; 
-            color: var(--text-main); 
-            -webkit-font-smoothing: antialiased;
-        }
-
-        .container { 
-            max-width: 800px; 
-            margin: auto; 
-        }
-
-        .header { 
-            text-align: center; 
-            margin-bottom: 24px; 
-        }
-
-        .header h2 {
-            font-weight: 600;
-            font-size: 24px;
-            letter-spacing: -0.5px;
-            margin: 0;
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Arial, sans-serif; background-color: var(--bg-color); margin: 0; padding: 24px; color: var(--text-main); -webkit-font-smoothing: antialiased; }
+        
+        .app-layout { display: flex; gap: 24px; max-width: 1600px; margin: 0 auto; align-items: flex-start; }
+        .main-content { flex: 1 1 70%; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; }
+        .header h2 { font-weight: 600; font-size: 24px; margin: 0; letter-spacing: -0.5px;}
+        .brand { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
 
         /* Khung Camera */
-        .live-cam { 
-            background: #000; 
-            border-radius: 18px; 
-            overflow: hidden; 
-            position: relative; 
-            box-shadow: var(--shadow-mac); 
-            margin-bottom: 24px; 
-            border: 1px solid var(--border-color);
-        }
-
-        .live-cam img { 
-            width: 100%; 
-            display: block; 
-            object-fit: cover;
-            aspect-ratio: 16/9;
-        }
-
-        .badge { 
-            position: absolute; 
-            top: 16px; 
-            left: 16px; 
-            background: rgba(255, 59, 48, 0.9); 
-            backdrop-filter: blur(4px); 
-            color: white; 
-            padding: 4px 12px; 
-            border-radius: 20px; 
-            font-weight: 600; 
-            font-size: 12px; 
-            letter-spacing: 0.5px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            animation: blink 1.5s infinite; 
-        }
-
+        .live-cam { background: #000; border-radius: 16px; overflow: hidden; position: relative; box-shadow: var(--shadow); border: 1px solid var(--border-color); }
+        .live-cam img { width: 100%; display: block; object-fit: cover; aspect-ratio: 16/9; }
+        .badge-live { position: absolute; top: 16px; left: 16px; background: rgba(255, 59, 48, 0.9); backdrop-filter: blur(4px); color: white; padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); animation: blink 1.5s infinite; }
         @keyframes blink { 50% { opacity: 0.7; } }
 
-        /* Bảng Log Panel */
-        .log-panel { 
-            background: var(--panel-bg); 
-            padding: 24px; 
-            border-radius: 18px; 
-            box-shadow: var(--shadow-mac); 
-            border: 1px solid var(--border-color);
-        }
+        /* Stats Grid - Sẽ được Javascript fill data */
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+        .stat-card { background: var(--panel-bg); border-radius: 12px; padding: 16px; box-shadow: var(--shadow); border: 1px solid var(--border-color); }
+        .stat-icon { font-size: 20px; margin-bottom: 8px;}
+        .stat-title { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
+        .stat-value { font-size: 18px; font-weight: 600; margin-top: 4px;}
 
-        .log-panel h3 {
-            margin-top: 0;
-            font-size: 18px;
-            font-weight: 600;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 12px;
-            margin-bottom: 20px;
-        }
+        /* Sidebar Log */
+        .sidebar { flex: 1 1 30%; width: 380px; background: var(--panel-bg); border-radius: 16px; box-shadow: var(--shadow); border: 1px solid var(--border-color); display: flex; flex-direction: column; height: calc(100vh - 48px); position: sticky; top: 24px; }
+        .sidebar-header { padding: 16px 20px 10px; border-bottom: 1px solid var(--border-color); }
+        .sidebar-header h3 { margin: 0 0 12px 0; font-size: 18px; font-weight: 600; }
+        
+        .filter-bar { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
+        .filter-bar::-webkit-scrollbar { display: none; } 
+        .filter-chip { padding: 6px 12px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; color: var(--text-secondary); transition: all 0.2s; }
+        .filter-chip:hover { background: #e5e5ea; }
+        .filter-chip.active { background: var(--text-main); color: white; border-color: var(--text-main); }
 
-        .log-container {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
+        .log-container { padding: 20px; overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; gap: 20px; }
+        .log-item { display: flex; align-items: flex-start; position: relative; padding-left: 16px; }
+        .log-item::before { content: ''; position: absolute; left: 0; top: 6px; width: 8px; height: 8px; border-radius: 50%; background-color: var(--text-secondary); box-shadow: 0 0 0 4px rgba(134, 134, 139, 0.1); }
+        
+        .log-item.FALL_DETECTED::before { background-color: var(--red); box-shadow: 0 0 0 4px rgba(255, 59, 48, 0.1); }
+        .log-item.RESTLESS_SLEEP::before { background-color: var(--orange); box-shadow: 0 0 0 4px rgba(255, 149, 0, 0.1); }
+        .log-item.DRINK_WATER::before { background-color: var(--blue); box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.1); }
+        .log-item.WALKING_DETECTED::before { background-color: var(--green); box-shadow: 0 0 0 4px rgba(52, 199, 89, 0.1); }
 
-        .log-item { 
-            display: flex; 
-            align-items: flex-start; 
-            position: relative;
-            padding-left: 16px;
-        }
-
-        .log-item::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 6px;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background-color: var(--blue-mac);
-            box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.1);
-        }
-
-        .log-item.alert::before { 
-            background-color: var(--red-mac); 
-            box-shadow: 0 0 0 4px rgba(255, 59, 48, 0.1);
-        }
-
-        .log-time { 
-            font-size: 13px; 
-            color: var(--text-secondary); 
-            font-weight: 500; 
-            width: 90px; 
-            flex-shrink: 0; 
-            padding-top: 2px;
-        }
-
+        .log-time { font-size: 12px; color: var(--text-secondary); font-weight: 600; width: 70px; flex-shrink: 0; padding-top: 3px; }
         .log-content { flex-grow: 1; }
         
-        .log-title { 
-            font-weight: 600; 
-            font-size: 15px;
-            margin-bottom: 4px; 
-        }
+        .event-tag { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; margin-bottom: 6px; background: #eee; color: #555; }
+        .FALL_DETECTED .event-tag { background: rgba(255, 59, 48, 0.1); color: var(--red); }
+        .RESTLESS_SLEEP .event-tag { background: rgba(255, 149, 0, 0.1); color: var(--orange); }
+        .DRINK_WATER .event-tag { background: rgba(0, 122, 255, 0.1); color: var(--blue); }
+        .WALKING_DETECTED .event-tag { background: rgba(52, 199, 89, 0.1); color: var(--green); }
 
-        .log-desc { 
-            font-size: 14px; 
-            color: var(--text-secondary); 
-            line-height: 1.4;
-        }
-
-        .evidence-img { 
-            height: 90px; 
-            border-radius: 8px; 
-            margin-top: 12px; 
-            border: 1px solid var(--border-color); 
-            cursor: zoom-in; 
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            transition: transform 0.2s ease;
-        }
-
-        .evidence-img:hover {
-            transform: scale(1.02);
-        }
+        .log-desc { font-size: 14px; font-weight: 500; line-height: 1.4; margin-bottom: 8px;}
         
-        .empty-state {
-            text-align: center;
-            color: var(--text-secondary);
-            font-size: 14px;
-            padding: 20px 0;
+        /* Chứa các thông số Metadata thô */
+        .meta-container { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+        .meta-badge { font-size: 11px; background: #f0f0f0; padding: 2px 6px; border-radius: 4px; border: 1px solid #e0e0e0; color: #333; font-family: monospace;}
+        .meta-badge strong { color: var(--blue); }
+
+        .evidence-img { height: 80px; border-radius: 6px; border: 1px solid var(--border-color); cursor: zoom-in; transition: transform 0.2s; }
+        .evidence-img:hover { transform: scale(1.05); }
+        .empty-state { text-align: center; color: var(--text-secondary); font-size: 14px; padding: 40px 0; }
+
+        /* --- MODAL XEM ẢNH TO --- */
+        .modal {
+            display: none; position: fixed; z-index: 9999; padding-top: 50px; left: 0; top: 0;
+            width: 100%; height: 100%; overflow: auto; 
+            background-color: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
+        }
+        .modal-content { margin: auto; display: block; max-width: 90%; max-height: 85vh; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); object-fit: contain; }
+        .close-modal { position: absolute; top: 20px; right: 40px; color: #f1f1f1; font-size: 40px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        .close-modal:hover, .close-modal:focus { color: #bbb; text-decoration: none; cursor: pointer; }
+
+        @media (max-width: 1024px) {
+            .app-layout { flex-direction: column; }
+            .sidebar { width: 100%; height: auto; position: static; max-height: 600px; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h2>Hệ Thống Giám Sát</h2>
+    <div class="app-layout">
+        
+        <div class="main-content">
+            <div class="header">
+                <h2>Phòng Bệnh VIP 1</h2>
+                <div class="brand">Powered by Ban Công Nghệ Core</div>
+            </div>
+
+            <div class="live-cam">
+                <div class="badge-live">LIVE</div>
+                <img id="live-stream" src="live.jpg" alt="Live Feed" onerror="this.src='https://via.placeholder.com/1000x562?text=Dang+Ket+Noi+Camera...'">
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">🚨</div>
+                    <div class="stat-title">Sự cố ngã</div>
+                    <div class="stat-value" id="stat-fall" style="color: var(--red)">0 lần</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🌙</div>
+                    <div class="stat-title">Trăn trở</div>
+                    <div class="stat-value" id="stat-sleep" style="color: var(--orange)">0 lần</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">💧</div>
+                    <div class="stat-title">Uống nước</div>
+                    <div class="stat-value" id="stat-drink">0 lần</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🚶</div>
+                    <div class="stat-title">Vận động</div>
+                    <div class="stat-value" id="stat-walk">0 lần</div>
+                </div>
+            </div>
         </div>
 
-        <div class="live-cam">
-            <div class="badge">LIVE</div>
-            <img id="live-stream" src="live.jpg" alt="Camera Live Feed" onerror="this.src='https://via.placeholder.com/800x450?text=Dang+Ket+Noi+Camera...'">
-        </div>
-
-        <div class="log-panel">
-            <h3>Nhật ký sự kiện</h3>
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h3>Nhật ký sự kiện</h3>
+                <div class="filter-bar" id="filter-bar">
+                    <div class="filter-chip active" onclick="setFilter('ALL', this)">Tất cả</div>
+                    <div class="filter-chip" onclick="setFilter('FALL_DETECTED', this)">🚨 Ngã</div>
+                    <div class="filter-chip" onclick="setFilter('RESTLESS_SLEEP', this)">🌙 Trăn trở</div>
+                    <div class="filter-chip" onclick="setFilter('DRINK_WATER', this)">💧 Uống</div>
+                    <div class="filter-chip" onclick="setFilter('WALKING_DETECTED', this)">🚶 Đi lại</div>
+                </div>
+            </div>
+            
             <div id="log-container" class="log-container">
                 <div class="empty-state">Đang tải dữ liệu...</div>
             </div>
         </div>
     </div>
 
+    <div id="imageModal" class="modal" onclick="closeModal()">
+        <span class="close-modal">&times;</span>
+        <img class="modal-content" id="modalImg">
+    </div>
+
     <script>
-        /* ---------------------------------------------------
-           LOGIC 1: CẬP NHẬT ẢNH LIVE LIÊN TỤC (UI Vẫn Mượt)
-        --------------------------------------------------- */
         const liveImg = document.getElementById('live-stream');
-        setInterval(() => {
-            // Dùng đường dẫn tương đối, trùng thư mục với index.html
-            liveImg.src = 'live.jpg?t=' + new Date().getTime();
-        }, 100); 
+        setInterval(() => { liveImg.src = 'live.jpg?t=' + new Date().getTime(); }, 300);
 
-        /* ---------------------------------------------------
-           LOGIC 2: ĐỌC LỊCH SỬ CẢNH BÁO TỪ HISTORY.JSON
-        --------------------------------------------------- */
         const logContainer = document.getElementById('log-container');
-        let previousLogData = ""; // Biến lưu trạng thái cũ để tránh render lại toàn bộ nếu không có file mới
+        let rawHistoryData = []; 
+        let previousJsonString = ""; 
+        let currentFilter = "ALL"; 
 
-        async function fetchHistory() {
-            try {
-                // Fetch file history.json (chống cache bằng timestamp)
-                const response = await fetch('history.json?t=' + new Date().getTime());
-                
-                if (!response.ok) {
-                    throw new Error("Chưa có file lịch sử");
-                }
-                
-                const data = await response.json();
-                
-                // Tránh việc giật màn hình (chỉ render lại nếu có dữ liệu mới)
-                if (JSON.stringify(data) === previousLogData) return;
-                previousLogData = JSON.stringify(data);
+        const tagNames = {
+            "FALL_DETECTED": "🚨 TÉ NGÃ",
+            "RESTLESS_SLEEP": "🌙 TRĂN TRỞ",
+            "DRINK_WATER": "💧 UỐNG NƯỚC",
+            "WALKING_DETECTED": "🚶 ĐI LẠI"
+        };
 
-                // Render dữ liệu ra HTML
-                logContainer.innerHTML = ''; 
-
-                if (data.length === 0) {
-                    logContainer.innerHTML = '<div class="empty-state">Chưa có sự kiện bất thường nào.</div>';
-                    return;
-                }
-
-                data.forEach(item => {
-                    // Tạo HTML cho mỗi log
-                    const isAlert = item.reason.toLowerCase().includes('cảnh báo') || item.reason.toLowerCase().includes('phát hiện') || item.reason.toLowerCase().includes('trăn trở');
-                    const alertClass = isAlert ? 'alert' : '';
-                    const icon = isAlert ? '⚠️' : 'ℹ️';
-
-                    const logHTML = `
-                        <div class="log-item ${alertClass}">
-                            <div class="log-time">${item.time}</div>
-                            <div class="log-content">
-                                <div class="log-title">${icon} ${item.reason}</div>
-                                ${item.image ? `<img class="evidence-img" src="${item.image}" alt="Bằng chứng" onerror="this.style.display='none'">` : ''}
-                            </div>
-                        </div>
-                    `;
-                    logContainer.insertAdjacentHTML('beforeend', logHTML);
-                });
-
-            } catch (error) {
-                // Nếu chưa có history.json (lần đầu chạy hệ thống), hiện log mặc định
-                if(previousLogData === "") {
-                    logContainer.innerHTML = `
-                        <div class="log-item">
-                            <div class="log-time">Vừa xong</div>
-                            <div class="log-content">
-                                <div class="log-title">ℹ️ Trạng thái bình thường</div>
-                                <div class="log-desc">Hệ thống đã sẵn sàng và đang chờ dữ liệu AI...</div>
-                            </div>
-                        </div>
-                    `;
-                }
-            }
+        // --- CÁC HÀM XỬ LÝ MODAL ẢNH ---
+        function openModal(imgSrc, event) {
+            event.stopPropagation(); // Ngăn click bubble
+            const modal = document.getElementById("imageModal");
+            const modalImg = document.getElementById("modalImg");
+            modal.style.display = "block";
+            modalImg.src = imgSrc;
         }
 
-        // Gọi hàm fetchHistory mỗi 2 giây một lần để dò tìm bằng chứng mới
+        function closeModal() {
+            document.getElementById("imageModal").style.display = "none";
+        }
+
+        function setFilter(filterType, element) {
+            currentFilter = filterType;
+            document.querySelectorAll('.filter-chip').forEach(chip => chip.classList.remove('active'));
+            element.classList.add('active');
+            renderLogs();
+        }
+
+        // --- CẬP NHẬT GIAO DIỆN CHÍNH ---
+        function renderLogs() {
+            logContainer.innerHTML = ''; 
+            const filteredData = rawHistoryData.filter(item => currentFilter === "ALL" || item.tag === currentFilter);
+
+            if (filteredData.length === 0) {
+                logContainer.innerHTML = '<div class="empty-state">Không có sự kiện nào.</div>';
+                return;
+            }
+
+            filteredData.forEach(item => {
+                const displayTag = tagNames[item.tag] || item.tag;
+                
+                // RENDER METADATA THÔ
+                let metaHTML = '';
+                if (item.metadata && Object.keys(item.metadata).length > 0) {
+                    metaHTML = '<div class="meta-container">';
+                    for (const [key, value] of Object.entries(item.metadata)) {
+                        // Bỏ qua trường description vì nó đã hiện to ở log-desc
+                        if(key !== "description") {
+                            metaHTML += `<span class="meta-badge">${key}: <strong>${value}</strong></span>`;
+                        }
+                    }
+                    metaHTML += '</div>';
+                }
+
+                const logHTML = `
+                    <div class="log-item ${item.tag}">
+                        <div class="log-time">${item.time}</div>
+                        <div class="log-content">
+                            <div class="event-tag">${displayTag}</div>
+                            <div class="log-desc">${item.desc}</div>
+                            ${metaHTML}
+                            ${item.image ? `<img class="evidence-img" src="${item.image}" onclick="openModal('${item.image}', event)" title="Bấm để phóng to">` : ''}
+                        </div>
+                    </div>
+                `;
+                logContainer.insertAdjacentHTML('beforeend', logHTML);
+            });
+        }
+
+        // --- FETCH DỮ LIỆU CẤU TRÚC MỚI ---
+        async function fetchHistory() {
+            try {
+                const response = await fetch('history.json?t=' + new Date().getTime());
+                if (!response.ok) throw new Error("Chưa có file");
+                const data = await response.json();
+                
+                if (JSON.stringify(data) === previousJsonString) return;
+                previousJsonString = JSON.stringify(data);
+                
+                // Đổ số liệu thống kê (Stats) lên thẻ Dashboard
+                if(data.stats) {
+                    document.getElementById('stat-fall').innerText = (data.stats["FALL_DETECTED"] || 0) + " lần";
+                    document.getElementById('stat-sleep').innerText = (data.stats["RESTLESS_SLEEP"] || 0) + " lần";
+                    document.getElementById('stat-drink').innerText = (data.stats["DRINK_WATER"] || 0) + " lần";
+                    document.getElementById('stat-walk').innerText = (data.stats["WALKING_DETECTED"] || 0) + " lần";
+                }
+
+                rawHistoryData = data.events || [];
+                renderLogs();
+
+            } catch (error) {}
+        }
+
         setInterval(fetchHistory, 2000);
-        fetchHistory(); // Chạy ngay lần đầu tải trang
+        fetchHistory();
     </script>
 </body>
 </html>

@@ -1,8 +1,17 @@
+# module/cv_processor.py
 import os
 import cv2
 import time
 import json
+import pymongo
+from datetime import datetime, timezone
 import mediapipe as mp
+
+# Nạp các gói Extension
+from module.extensions.fall_detection import FallDetectionExt
+from module.extensions.sleep_tracking import SleepTrackingExt
+from module.extensions.drink_water import DrinkWaterExt
+from module.extensions.walk_time import WalkTimeExt
 
 LIVE_IMG_PATH = '/app/evidence/live.jpg'
 HISTORY_JSON_PATH = '/app/evidence/history.json'
@@ -15,121 +24,128 @@ class CVProcessor:
     def __init__(self):
         self.frame_count = 0
         
-        # 1. Khởi tạo "Bộ não" MediaPipe Pose
+        # 1. Khởi tạo MediaPipe
         self.mp_pose = mp.solutions.pose
-        self.pose = self.mp_pose.Pose(
-            min_detection_confidence=0.6,
-            min_tracking_confidence=0.6
-        )
-        self.mp_draw = mp.solutions.drawing_utils # Công cụ vẽ bộ xương
+        self.pose = self.mp_pose.Pose(min_detection_confidence=0.8, min_tracking_confidence=0.8)
+        self.mp_draw = mp.solutions.drawing_utils
         
-        # 2. Bộ đếm chống Spam cảnh báo
-        self.last_alert_time = 0
-        self.cooldown_seconds = 5 # Cách nhau 5 giây mới báo động 1 lần
+        # 2. Đăng ký các gói Extensions
+        self.extensions = [
+            FallDetectionExt(),
+            SleepTrackingExt(),
+            DrinkWaterExt(),
+            WalkTimeExt()
+        ]
+        
+        # 3. Bộ đếm tĩnh để nuôi giao diện Dashboard (Raw Data)
+        self.session_stats = {
+            "FALL_DETECTED": 0,
+            "RESTLESS_SLEEP": 0,
+            "DRINK_WATER": 0,
+            "WALKING_DETECTED": 0
+        }
+        
+        # 4. Kết nối MongoDB
+        try:
+            self.mongo_client = pymongo.MongoClient("mongodb://127.0.0.1:27017/", serverSelectionTimeoutMS=2000)
+            self.mongo_client.admin.command('ping')
+            self.db = self.mongo_client["monitor_db"]
+            self.events_collection = self.db["patient_events"]
+            print(f"✅ [{getTimelog()}] KẾT NỐI MONGODB THÀNH CÔNG!")
+        except Exception as e:
+            print(f"⚠️ [{getTimelog()}] LỖI MONGODB: Hệ thống sẽ chỉ ghi log JSON. Chi tiết: {e}")
+            self.events_collection = None
 
     def clear_live_image(self):
         if os.path.exists(LIVE_IMG_PATH):
-            try:
-                os.remove(LIVE_IMG_PATH)
-                print(f"🗑️ [{getTimelog()}] Đã xoá ảnh live do mất kết nối.")
-            except Exception:
-                pass
+            try: os.remove(LIVE_IMG_PATH)
+            except Exception: pass
 
-    def _log_to_json(self, reason, image_filename):
-        """Hàm nội bộ: Ghi lịch sử ra file JSON cho Web Dashboard đọc"""
+    def _sync_to_nginx_ui(self, event_name, desc, filename, metadata):
+        """Ghi JSON chứa Raw Data và Stats cho giao diện Web"""
+        
+        # Cập nhật số đếm thống kê
+        if event_name in self.session_stats:
+            self.session_stats[event_name] += 1
+            
+        # Tạo bản ghi log mới
         alert_data = {
             "time": time.strftime("%H:%M:%S", time.localtime()),
-            "reason": reason,
-            "image": image_filename
+            "tag": event_name,
+            "desc": desc,
+            "image": filename,
+            "metadata": metadata # Đổ trực tiếp Raw Data từ AI vào đây
         }
         
-        history = []
+        # Cấu trúc Wrapper mới cho history.json
+        data_wrapper = {
+            "stats": self.session_stats, 
+            "events": []
+        }
+        
+        # Đọc dữ liệu cũ (nếu có)
         if os.path.exists(HISTORY_JSON_PATH):
             try:
                 with open(HISTORY_JSON_PATH, 'r', encoding='utf-8') as f:
-                    history = json.load(f)
-            except Exception:
-                pass
+                    old_data = json.load(f)
+                    # Chỉ lấy lại mảng events cũ
+                    data_wrapper["events"] = old_data.get("events", [])
+            except Exception: pass
         
-        # Nhét cảnh báo mới nhất lên đầu danh sách
-        history.insert(0, alert_data) 
-        # Chỉ giữ lại 20 cảnh báo gần nhất để Web không bị nặng
-        history = history[:20] 
+        # Nhét sự kiện mới lên đầu và giới hạn 20 phần tử
+        data_wrapper["events"].insert(0, alert_data) 
+        data_wrapper["events"] = data_wrapper["events"][:20] 
         
+        # Ghi đè file
         with open(HISTORY_JSON_PATH, 'w', encoding='utf-8') as f:
-            json.dump(history, f, ensure_ascii=False, indent=4)
+            json.dump(data_wrapper, f, ensure_ascii=False, indent=4)
 
     def process_frame(self, frame):
         self.frame_count += 1
-        is_falling = False
-        
-        # --- BƯỚC 1: ĐƯA ẢNH CHO AI XỬ LÝ ---
-        # MediaPipe yêu cầu hệ màu RGB, trong khi OpenCV dùng BGR
         img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = self.pose.process(img_rgb)
         
-        # --- BƯỚC 2: PHÂN TÍCH LOGIC TÉ NGÃ ---
         if results.pose_landmarks:
             landmarks = results.pose_landmarks.landmark
-            h, w, c = frame.shape
+            frame_shape = frame.shape
             
-            # 1. BỘ LỌC ĐIỂM MÙ (Visibility Filter)
-            # Lấy điểm tin cậy của Vai (11, 12) và Hông (23, 24)
-            left_shoulder_vis = landmarks[11].visibility
-            right_shoulder_vis = landmarks[12].visibility
-            left_hip_vis = landmarks[23].visibility
-            right_hip_vis = landmarks[24].visibility
-            
-            # Tính trung bình độ tin cậy của phần thân mình
-            body_visibility = (left_shoulder_vis + right_shoulder_vis + left_hip_vis + right_hip_vis) / 4.0
-
-            # Chỉ xử lý nếu AI chắc chắn > 60% đây là thân người
-            if body_visibility > 0.6:
+            # --- THE DISPATCHER: CHIA PHÁT DỮ LIỆU CHO EXTENSIONS ---
+            for ext in self.extensions:
+                current_time = time.time()
                 
-                # Tính khung chữ nhật
-                x_coords = [lm.x for lm in landmarks]
-                y_coords = [lm.y for lm in landmarks]
+                # Gọi logic của Extension (Nhận lại dictionary metadata)
+                metadata = ext.process(landmarks, frame_shape)
                 
-                width = (max(x_coords) - min(x_coords)) * w
-                height = (max(y_coords) - min(y_coords)) * h
-                
-                # 2. BỘ LỌC KÍCH THƯỚC (Area Filter)
-                # Kích thước người chiếm ít nhất bao nhiêu % khung hình (Ví dụ: 10%)
-                screen_area = w * h
-                person_area = width * height
-                
-                if person_area > (screen_area * 0.10): 
+                # Nếu phát hiện sự kiện VÀ qua thời gian hồi chiêu
+                if metadata and (current_time - ext.last_triggered > ext.cooldown):
+                    ext.last_triggered = current_time
                     
-                    # Tùy chọn: Vẽ khung xương lên ảnh khi đã qua bộ lọc để dễ debug
+                    # 1. Chụp Bằng Chứng
+                    timestamp_str = time.strftime("%Y%m%d_%H%M%S")
+                    filename = f"{ext.event_name.lower()}_{timestamp_str}.jpg"
+                    filepath = os.path.join(EVIDENCE_DIR, filename)
+                    
+                    # Vẽ khung xương lên ảnh
                     self.mp_draw.draw_landmarks(frame, results.pose_landmarks, self.mp_pose.POSE_CONNECTIONS)
+                    cv2.imwrite(filepath, frame)
                     
-                    # 3. LOGIC TÉ NGÃ CỐT LÕI
-                    if height > 0:
-                        ratio = width / height
-                        if ratio > 1.2:
-                            is_falling = True
+                    # 2. Cập nhật giao diện Web (Truyền metadata vào)
+                    desc = metadata.get("description", "Có sự kiện bất thường")
+                    self._sync_to_nginx_ui(ext.event_name, desc, filename, metadata)
+                    
+                    # 3. Ghi vào MongoDB (Polymorphic JSON)
+                    if self.events_collection is not None:
+                        doc = {
+                            "patient_id": "PT_001",
+                            "timestamp": datetime.now(timezone.utc),
+                            "event_type": ext.event_name,
+                            "image_evidence": f"/evidence/{filename}",
+                            "metadata": metadata
+                        }
+                        self.events_collection.insert_one(doc)
+                        
+                    print(f"🚨 [{getTimelog()}] {ext.event_name} -> Đã đẩy UI & MongoDB")
 
-        # --- BƯỚC 3: KÍCH HOẠT LƯU BẰNG CHỨNG ---
-        current_time = time.time()
-        # Nếu ngã VÀ đã qua thời gian hồi chiêu (5s)
-        if is_falling and (current_time - self.last_alert_time > self.cooldown_seconds):
-            self.last_alert_time = current_time
-            
-            # Tạo tên file bằng chứng
-            timestamp = time.strftime("%Y%m%d_%H%M%S")
-            filename = f"alert_{timestamp}.jpg"
-            filepath = os.path.join(EVIDENCE_DIR, filename)
-            
-            # Đóng mộc đỏ lên ảnh
-            cv2.putText(frame, "CANH BAO: PHAT HIEN TE NGA!", (20, 50), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
-            
-            # Lưu ảnh & Cập nhật UI Web
-            cv2.imwrite(filepath, frame)
-            self._log_to_json("Cảnh báo: Bệnh nhân nằm trên sàn!", filename)
-            
-            print(f"🚨 [{getTimelog()}] PHÁT HIỆN TÉ NGÃ! Đã lưu: {filename}")
-
-        # --- BƯỚC 4: XUẤT ẢNH LIVE CHO WEB ---
+        # Xuất ảnh Live mượt mà (Hệ số chẵn lẻ giảm tải)
         if self.frame_count % 2 == 0:
             cv2.imwrite(LIVE_IMG_PATH, frame)

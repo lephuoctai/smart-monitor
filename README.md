@@ -28,3 +28,10 @@ docker exec -it monitor_cv python main.py
 3. Xem Dashboard Giám Sát:
 Mở trình duyệt và truy cập vào địa chỉ:
 http://localhost:9000/evidence/index.html (Hoặc thay localhost bằng IP mạng LAN).
+
+# Bổ sung:
+**Truy vấn cơ sở dữ liệu**
+Database: monitor_db
+```bash
+sudo docker exec -it monitor_db mongosh
+```
