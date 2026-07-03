@@ -15,14 +15,6 @@ class DataManager:
     def __init__(self, retention_days=7):
         self.retention_days = retention_days
         
-        # Bộ đếm tĩnh để nuôi Dashboard (Raw Data)
-        self.session_stats = {
-            "FALL_DETECTED": 0,
-            "RESTLESS_SLEEP": 0,
-            "DRINK_WATER": 0,
-            "WALKING_DETECTED": 0
-        }
-        
         # Kết nối MongoDB và cấu hình TTL (Tự xóa sau 90 ngày)
         try:
             self.mongo_client = pymongo.MongoClient("mongodb://127.0.0.1:27017/", serverSelectionTimeoutMS=2000)
@@ -70,13 +62,11 @@ class DataManager:
             # Ngủ 12 tiếng rồi quét tiếp
             time.sleep(43200)
 
+    #Hardcode: Lưu trữ sự kiện vào cả JSON và MongoDB, patient_id mặc định là PT_001 (có thể mở rộng sau)
     def save_event(self, event_name, desc, filename, metadata, patient_id="PT_001"):
-        """Xử lý đồng thời cả giao diện Web (JSON) và MongoDB"""
+        """Xử lý đồng thời cả giao diện Web (JSON 200 log) và MongoDB"""
         
-        # 1. CẬP NHẬT JSON (DỮ LIỆU NÓNG CHO WEB)
-        if event_name in self.session_stats:
-            self.session_stats[event_name] += 1
-            
+        # Tạo bản ghi mới
         alert_data = {
             "time": time.strftime("%H:%M:%S", time.localtime()),
             "tag": event_name,
@@ -85,7 +75,8 @@ class DataManager:
             "metadata": metadata
         }
         
-        data_wrapper = {"stats": self.session_stats, "events": []}
+        # Cấu trúc json giờ chỉ còn mảng events
+        data_wrapper = {"events": []}
         
         if os.path.exists(HISTORY_JSON_PATH):
             try:
@@ -94,8 +85,9 @@ class DataManager:
                     data_wrapper["events"] = old_data.get("events", [])
             except Exception: pass
         
+        # Nhét lên đầu và 🔥 GIỮ LẠI TỐI ĐA 200 LOG
         data_wrapper["events"].insert(0, alert_data) 
-        data_wrapper["events"] = data_wrapper["events"][:20] 
+        data_wrapper["events"] = data_wrapper["events"][:200] 
         
         try:
             with open(HISTORY_JSON_PATH, 'w', encoding='utf-8') as f:

@@ -94,8 +94,8 @@
         
         <div class="main-content">
             <div class="header">
-                <h2>Phòng Bệnh VIP 1</h2>
-                <div class="brand">Powered by Ban Công Nghệ Core</div>
+                <h2>Phòng Bệnh</h2>
+                <div class="brand">PT_001</div>
             </div>
 
             <div class="live-cam">
@@ -228,6 +228,7 @@
         }
 
         // --- FETCH DỮ LIỆU CẤU TRÚC MỚI ---
+        // --- FETCH DỮ LIỆU & TỰ ĐỘNG ĐẾM (AUTO COUNTING) ---
         async function fetchHistory() {
             try {
                 const response = await fetch('history.json?t=' + new Date().getTime());
@@ -237,15 +238,31 @@
                 if (JSON.stringify(data) === previousJsonString) return;
                 previousJsonString = JSON.stringify(data);
                 
-                // Đổ số liệu thống kê (Stats) lên thẻ Dashboard
-                if(data.stats) {
-                    document.getElementById('stat-fall').innerText = (data.stats["FALL_DETECTED"] || 0) + " lần";
-                    document.getElementById('stat-sleep').innerText = (data.stats["RESTLESS_SLEEP"] || 0) + " lần";
-                    document.getElementById('stat-drink').innerText = (data.stats["DRINK_WATER"] || 0) + " lần";
-                    document.getElementById('stat-walk').innerText = (data.stats["WALKING_DETECTED"] || 0) + " lần";
-                }
-
+                // Lấy mảng 200 sự kiện
                 rawHistoryData = data.events || [];
+                
+                // 1. TẠO BỘ ĐẾM TRỐNG
+                let dynamicStats = {
+                    "FALL_DETECTED": 0,
+                    "RESTLESS_SLEEP": 0,
+                    "DRINK_WATER": 0,
+                    "WALKING_DETECTED": 0
+                };
+
+                // 2. CHẠY VÒNG LẶP ĐỂ ĐẾM THEO TAG
+                rawHistoryData.forEach(item => {
+                    if (dynamicStats[item.tag] !== undefined) {
+                        dynamicStats[item.tag]++;
+                    }
+                });
+
+                // 3. ĐỔ SỐ LIỆU ĐÃ ĐẾM LÊN GIAO DIỆN
+                document.getElementById('stat-fall').innerText = dynamicStats["FALL_DETECTED"] + " lần";
+                document.getElementById('stat-sleep').innerText = dynamicStats["RESTLESS_SLEEP"] + " lần";
+                document.getElementById('stat-drink').innerText = dynamicStats["DRINK_WATER"] + " lần";
+                document.getElementById('stat-walk').innerText = dynamicStats["WALKING_DETECTED"] + " lần";
+
+                // 4. VẼ LOG RA MÀN HÌNH
                 renderLogs();
 
             } catch (error) {}

@@ -16,13 +16,13 @@ Hệ thống AI ứng dụng Computer Vision theo dõi trạng thái bệnh nhâ
 Mở Terminal tại thư mục gốc dự án và chạy:
 
 ```bash
-docker-compose up -d
+sudo docker-compose up -d
 ```
 2. Kích hoạt Lõi AI (Computer Vision Engine):
 Truy cập vào container và chạy thuật toán nhận diện:
 
 ```bash
-docker exec -it monitor_cv python main.py
+sudo docker exec -it monitor_cv python main.py
 ```
 
 3. Xem Dashboard Giám Sát:

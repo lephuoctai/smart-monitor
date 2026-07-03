@@ -1,6 +1,6 @@
 opencv-python-headless==4.9.0.80
 mediapipe==0.10.11
 pymongo==4.6.3
-mediapipe=0.10.35
+mediapipe
 numpy
 pymongo
