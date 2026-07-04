@@ -5,6 +5,7 @@ import threading
 import queue
 
 RTSP_URL = "rtsp://100.121.202.41:8554/live"
+# RTSP_URL = "rtsp://admin:camera123@192.168.1.2:554/onvif2"
 RTSP_TRANSPORT_METHODS = ["tcp", "udp", "http"]
 
 def getTimelog():
@@ -23,7 +24,7 @@ class CameraManager:
         # ... (Toàn bộ hàm connect dò TCP/UDP giữ nguyên như cũ) ...
         print(f"\n🔄 [{getTimelog()}] Đang nỗ lực kết nối tới: {RTSP_URL}")
         for method in RTSP_TRANSPORT_METHODS:
-            os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = f"rtsp_transport;{method}"
+            os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = f"rtsp_transport;{method}|fflags;discardcorrupt|max_delay;500000|stimeout;5000000|buffer_size;10240000"
             cap = cv2.VideoCapture(RTSP_URL, cv2.CAP_FFMPEG)
             if cap.isOpened():
                 self.cached_method = method

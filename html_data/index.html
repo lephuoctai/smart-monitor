@@ -100,7 +100,7 @@
 
             <div class="live-cam">
                 <div class="badge-live">LIVE</div>
-                <img id="live-stream" src="live.jpg" alt="Live Feed" onerror="this.src='https://via.placeholder.com/1000x562?text=Dang+Ket+Noi+Camera...'">
+                <img id="live-stream" src="evidence/live.jpg" alt="Live Feed" onerror="this.src='https://via.placeholder.com/1000x562?text=Dang+Ket+Noi+Camera...'">
             </div>
 
             <div class="stats-grid">
@@ -152,7 +152,7 @@
 
     <script>
         const liveImg = document.getElementById('live-stream');
-        setInterval(() => { liveImg.src = 'live.jpg?t=' + new Date().getTime(); }, 300);
+        setInterval(() => { liveImg.src = 'evidence/live.jpg?t=' + new Date().getTime(); }, 300);
 
         const logContainer = document.getElementById('log-container');
         let rawHistoryData = []; 
@@ -198,6 +198,7 @@
 
             filteredData.forEach(item => {
                 const displayTag = tagNames[item.tag] || item.tag;
+                item.image = item.image ? `evidence/${item.image}` : null;
                 
                 // RENDER METADATA THÔ
                 let metaHTML = '';
@@ -231,7 +232,7 @@
         // --- FETCH DỮ LIỆU & TỰ ĐỘNG ĐẾM (AUTO COUNTING) ---
         async function fetchHistory() {
             try {
-                const response = await fetch('history.json?t=' + new Date().getTime());
+                const response = await fetch('evidence/history.json?t=' + new Date().getTime());
                 if (!response.ok) throw new Error("Chưa có file");
                 const data = await response.json();
                 

@@ -5,11 +5,12 @@ services:
   mongodb:
     image: mongo:6.0
     container_name: monitor_db
-    restart: unless-stopped   # Thêm cái này để tự khởi động khi server mất điện
+    restart: unless-stopped   # Tự khởi động khi server mất điện
     ports:
       - "27017:27017"
     volumes:
-      - db_data:/data/db      # Đổi thành Named Volume (Tránh lỗi phân quyền trên Linux)
+      - db_data:/data/db  # Lưu trữ dữ liệu của MongoDB
+      - db_config:/data/configdb  # Lưu trữ dữ liệu cấu hình của MongoDB
     environment:
       - TZ=Asia/Ho_Chi_Minh   # Đồng bộ giờ Việt Nam
     deploy:
@@ -26,6 +27,7 @@ services:
     ports:
       - "9000:80"
     volumes:
+      - ./html_data:/usr/share/nginx/html
       - ./evidence_data:/usr/share/nginx/html/evidence
     environment:
       - TZ=Asia/Ho_Chi_Minh
@@ -46,7 +48,7 @@ services:
     volumes:
       - ./cv-engine:/app
       - ./evidence_data:/app/evidence
-      - /etc/localtime:/etc/localtime:ro # Đồng bộ giờ lõi Ubuntu để AI ghi log chuẩn xác
+      - /etc/localtime:/etc/localtime:ro # Đồng bộ giờ lõi Ubuntu
     environment:
       - TZ=Asia/Ho_Chi_Minh
       # Phải khai báo MONGO_URI ở đây
@@ -60,3 +62,5 @@ services:
 volumes:
   db_data: # Khai báo ổ cứng ảo cho MongoDB
     name: smart_monitor_db_data
+  db_config: # Khai báo ổ cứng ảo cho cấu hình MongoDB
+    name: smart_monitor_db_config
