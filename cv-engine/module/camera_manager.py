@@ -4,7 +4,7 @@ import time
 import threading
 import queue
 
-RTSP_URL = "rtsp://192.168.1.98:8554/live"
+RTSP_URL = "rtsp://100.121.202.41:8554/live"
 RTSP_TRANSPORT_METHODS = ["tcp", "udp", "http"]
 
 def getTimelog():

@@ -18,6 +18,12 @@ Mở Terminal tại thư mục gốc dự án và chạy:
 ```bash
 sudo docker-compose up -d
 ```
+Hoặc
+
+```bash
+sudo docker compose up -d
+```
+
 2. Kích hoạt Lõi AI (Computer Vision Engine):
 Truy cập vào container và chạy thuật toán nhận diện:
 

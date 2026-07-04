@@ -1,47 +1,62 @@
 version: '3.8'
 
 services:
-  # CSDL MongoDB (Giới hạn 512MB RAM)
+  # CSDL MongoDB
   mongodb:
     image: mongo:6.0
     container_name: monitor_db
+    restart: unless-stopped   # Thêm cái này để tự khởi động khi server mất điện
     ports:
       - "27017:27017"
     volumes:
-      - ./db_data:/data/db
+      - db_data:/data/db      # Đổi thành Named Volume (Tránh lỗi phân quyền trên Linux)
+    environment:
+      - TZ=Asia/Ho_Chi_Minh   # Đồng bộ giờ Việt Nam
     deploy:
       resources:
         limits:
           cpus: '0.5'
           memory: 512M
 
-  # Nginx lưu ảnh bằng chứng (Giới hạn 100MB RAM)
+  # Nginx lưu ảnh bằng chứng
   storage-server:
     image: nginx:alpine
     container_name: monitor_storage
+    restart: unless-stopped
     ports:
       - "9000:80"
     volumes:
       - ./evidence_data:/usr/share/nginx/html/evidence
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
     deploy:
       resources:
         limits:
           cpus: '0.1'
           memory: 100M
 
-  # CV Engine giả lập giới hạn của HP i3 (Tối đa 1.5 CPU, 1.5GB RAM)
+  # CV Engine 
   cv-engine:
     build: ./cv-engine
     container_name: monitor_cv
-    network_mode: "host" # Bắt buộc để nhìn thấy IP 100.108.x.x của Tailscale/Local
+    restart: unless-stopped
+    network_mode: "host" 
     depends_on:
       - mongodb
     volumes:
       - ./cv-engine:/app
       - ./evidence_data:/app/evidence
+      - /etc/localtime:/etc/localtime:ro # Đồng bộ giờ lõi Ubuntu để AI ghi log chuẩn xác
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+      # Phải khai báo MONGO_URI ở đây
+      - MONGO_URI=mongodb://127.0.0.1:27017/
     deploy:
       resources:
         limits:
           cpus: '2'
           memory: 2G
 
+volumes:
+  db_data: # Khai báo ổ cứng ảo cho MongoDB
+    name: smart_monitor_db_data
