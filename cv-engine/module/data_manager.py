@@ -1,12 +1,10 @@
 import os
 import time
-import json
 import threading
 import pymongo
 from datetime import datetime, timezone
 
 EVIDENCE_DIR = '/app/evidence'
-HISTORY_JSON_PATH = '/app/evidence/history.json'
 
 def getTimelog():
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
@@ -14,24 +12,24 @@ def getTimelog():
 class DataManager:
     def __init__(self, retention_days=7):
         self.retention_days = retention_days
+        self.events_collection = None
         
-        # Kết nối MongoDB và cấu hình TTL (Tự xóa sau 90 ngày)
+        # 1. KẾT NỐI MONGODB
         try:
             self.mongo_client = pymongo.MongoClient("mongodb://127.0.0.1:27017/", serverSelectionTimeoutMS=2000)
             self.mongo_client.admin.command('ping')
             self.db = self.mongo_client["monitor_db"]
             self.events_collection = self.db["patient_events"]
             
-            # Kích hoạt Bom hẹn giờ (TTL) cho Dữ liệu lạnh
+            # Kích hoạt Bom hẹn giờ (TTL) cho Dữ liệu lạnh (90 ngày)
             self.events_collection.create_index("timestamp", expireAfterSeconds=7776000)
             
             print(f"✅ [{getTimelog()}] DATA_MANAGER: Kết nối MongoDB thành công! Đã nạp chính sách lưu trữ 90 ngày.")
         except Exception as e:
-            print(f"⚠️ [{getTimelog()}] DATA_MANAGER: Lỗi MongoDB. Hệ thống sẽ chỉ ghi log JSON. Chi tiết: {e}")
-            self.events_collection = None
+            print(f"⚠️ [{getTimelog()}] DATA_MANAGER: Lỗi MongoDB. Giao diện Web sẽ không có dữ liệu! Chi tiết: {e}")
 
     def start_cleanup_worker(self):
-        """Kích hoạt luồng chạy ngầm tự dọn ảnh cũ"""
+        """Kích hoạt luồng chạy ngầm tự dọn ảnh cũ trên ổ cứng"""
         cleaner_thread = threading.Thread(target=self._cleanup_task, daemon=True)
         cleaner_thread.start()
         
@@ -43,7 +41,8 @@ class DataManager:
             try:
                 if os.path.exists(EVIDENCE_DIR):
                     for filename in os.listdir(EVIDENCE_DIR):
-                        if filename in ["live.jpg", "history.json"]:
+                        # Bỏ qua ảnh live stream trực tiếp
+                        if filename == "live.jpg":
                             continue
                             
                         filepath = os.path.join(EVIDENCE_DIR, filename)
@@ -56,54 +55,45 @@ class DataManager:
                                 
                 if deleted_count > 0:
                     print(f"🗑️ [{getTimelog()}] DATA_MANAGER: Đã dọn dẹp {deleted_count} ảnh cũ hơn {self.retention_days} ngày.")
-            except Exception as e:
+            except Exception:
                 pass
                 
             # Ngủ 12 tiếng rồi quét tiếp
             time.sleep(43200)
 
-    #Hardcode: Lưu trữ sự kiện vào cả JSON và MongoDB, patient_id mặc định là PT_001 (có thể mở rộng sau)
+    # 2. GHI DỮ LIỆU (WRITE)
     def save_event(self, event_name, desc, filename, metadata, patient_id="PT_001"):
-        """Xử lý đồng thời cả giao diện Web (JSON 200 log) và MongoDB"""
-        
-        # Tạo bản ghi mới
-        alert_data = {
-            "time": time.strftime("%H:%M:%S", time.localtime()),
-            "tag": event_name,
-            "desc": desc,
-            "image": filename,
-            "metadata": metadata
-        }
-        
-        # Cấu trúc json giờ chỉ còn mảng events
-        data_wrapper = {"events": []}
-        
-        if os.path.exists(HISTORY_JSON_PATH):
-            try:
-                with open(HISTORY_JSON_PATH, 'r', encoding='utf-8') as f:
-                    old_data = json.load(f)
-                    data_wrapper["events"] = old_data.get("events", [])
-            except Exception: pass
-        
-        # Nhét lên đầu và 🔥 GIỮ LẠI TỐI ĐA 200 LOG
-        data_wrapper["events"].insert(0, alert_data) 
-        data_wrapper["events"] = data_wrapper["events"][:200] 
-        
-        try:
-            with open(HISTORY_JSON_PATH, 'w', encoding='utf-8') as f:
-                json.dump(data_wrapper, f, ensure_ascii=False, indent=4)
-        except Exception: pass
-
-        # 2. CẬP NHẬT MONGODB (DỮ LIỆU LẠNH/BÁO CÁO)
+        """Ghi sự kiện trực tiếp vào MongoDB, tối ưu tốc độ cho Core AI"""
         if self.events_collection is not None:
             try:
                 doc = {
                     "patient_id": patient_id,
                     "timestamp": datetime.now(timezone.utc),
-                    "event_type": event_name,
-                    "image_evidence": f"/evidence/{filename}",
+                    "time": time.strftime("%H:%M:%S", time.localtime()), # Giữ lại field này để Web hiển thị
+                    "tag": event_name,
+                    "desc": desc,
+                    "image": filename,
                     "metadata": metadata
                 }
                 self.events_collection.insert_one(doc)
             except Exception as e:
                 print(f"[{getTimelog()}] DATA_MANAGER: Lỗi ghi MongoDB - {e}")
+
+    # 3. ĐỌC DỮ LIỆU (READ) - Cung cấp cho FastAPI
+    def get_recent_events(self, limit=200):
+        """Truy xuất danh sách sự kiện mới nhất phục vụ API Web"""
+        if self.events_collection is None:
+            return []
+            
+        try:
+            # Sort theo timestamp giảm dần (mới nhất lên đầu)
+            # Loại bỏ cột _id và timestamp khỏi kết quả vì JSON mặc định không parse được object Datetime
+            cursor = self.events_collection.find(
+                {}, 
+                {"_id": 0, "timestamp": 0, "patient_id": 0}
+            ).sort("timestamp", -1).limit(limit)
+            
+            return list(cursor)
+        except Exception as e:
+            print(f"[{getTimelog()}] DATA_MANAGER: Lỗi đọc MongoDB - {e}")
+            return []

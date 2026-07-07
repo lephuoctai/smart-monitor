@@ -28,7 +28,7 @@ services:
       - "9000:80"
     volumes:
       - ./html_data:/usr/share/nginx/html
-      - ./evidence_data:/usr/share/nginx/html/evidence
+      - ./evidence_data:/usr/share/nginx/evidence
     environment:
       - TZ=Asia/Ho_Chi_Minh
     deploy:
